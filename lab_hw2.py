@@ -5,7 +5,7 @@ from scipy.sparse import csc_matrix
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from scipy.stats import entropy
 import json
-import pickle
+from sklearn.linear_model import SGDClassifier
 from nltk.stem.snowball import SnowballStemmer
 import warnings
 from sklearn.metrics.pairwise import cosine_similarity
@@ -40,7 +40,7 @@ def stem(s):
 labeled_path = 'C:/Users/אריאל/PycharmProjects/lab_hw1/labeled.csv'
 unlabeled_path = 'C:/Users/אריאל/PycharmProjects/lab_hw1/unlabeled.csv'
 warnings.filterwarnings("ignore")
-labeled = pd.read_csv(labeled_path, nrows=60000)
+labeled = pd.read_csv(labeled_path, nrows=210000)
 unlabeled = pd.read_csv(unlabeled_path, nrows=5)
 # labeled.drop(columns=['country', 'region', 'locality', 'founded', 'size'], inplace=True)
 # unlabeled.drop(columns=['country', 'region', 'locality', 'founded', 'size'], inplace=True)
@@ -104,49 +104,76 @@ industry2vec = {}
 
 # with open('HW1_205552599_205968043/205552599_205968043.json', 'r') as f:
 #      snippets = json.load(f)
-
-with open('snippets50000.json', 'r') as f:
+# with open('snippets50000.json', 'r') as f:
+with open('C:/Users/אריאל/PycharmProjects/lab_hw1/HW1_205552599_205968043/205552599_205968043.json', 'r') as f:
      snippets = json.load(f)
+     snippets = snippets[:210000]
 
 cnt = Counter()
 for snippet in snippets:
      for term in snippet['snippet']:
           cnt[term] += 1
-FREQ_THRESH = 50
-frequent_terms = {k:cnt[k] for k in dict(cnt).keys() if cnt[k]>= FREQ_THRESH}
-# print(frequent_terms)
+FREQ_THRESH = 1000/4
+VERY_COMMON_THRESH = 2000/4
+frequent_terms = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= FREQ_THRESH}
+very_common = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= VERY_COMMON_THRESH}
+not_very_common_lst = [k for k in frequent_terms.keys() if k not in very_common.keys()]
+common_cols = [f'has {str(term)} snippet' for term in frequent_terms.keys()]
 print(f'{len(frequent_terms)=}')
-for frequent_term in (frequent_terms.keys()):
-     labeled[f'has {str(frequent_term)} snippet'] = 0
-labeled.set_index('id', inplace=True)
-# print(labeled)
-for snippet in snippets:
-     for term in snippet['snippet']:
-          if term in frequent_terms.keys() and frequent_terms[term] >= FREQ_THRESH:
-               labeled.at[snippet['id'], f'has {str(term)} snippet'] = 1
+print(f'{len(very_common)=}')
 
-pd.set_option('display.max_rows', None)
-labeled['founded'] = (labeled['founded']-labeled['founded'].min())/(labeled['founded'].max()-labeled['founded'].min())
-labeled['size'] = labeled['size'].apply(lambda x: np.log(int(str(x).split('-')[0].replace('+',''))))
-labeled['size'] = (labeled['size']-labeled['size'].min())/(labeled['size'].max()-labeled['size'].min())
-train, test = labeled.loc[0:50000,:], labeled.loc[50001:60000,:]
-grouped = train.dropna(subset=['founded', 'size']).groupby('industry')
-# print(grouped.count())
+print('loaded')
+# normalize columns todo?
+labeled['founded'] = (labeled['founded'] - labeled['founded'].min()) / (
+            labeled['founded'].max() - labeled['founded'].min())
+labeled['size'] = labeled['size'].apply(lambda x: np.log(int(str(x).split('-')[0].replace('+', ''))))
+labeled['size'] = (labeled['size'] - labeled['size'].min()) / (labeled['size'].max() - labeled['size'].min())
+unlabeled['founded'] = (unlabeled['founded'] - unlabeled['founded'].min()) / (
+            unlabeled['founded'].max() - unlabeled['founded'].min())
+unlabeled['size'] = unlabeled['size'].apply(lambda x: np.log(int(str(x).split('-')[0].replace('+', ''))))
+unlabeled['size'] = (unlabeled['size'] - unlabeled['size'].min()) / (unlabeled['size'].max() - unlabeled['size'].min())
+labeled_splits = [labeled.loc[i:i+999,:] for i in range(0, labeled.shape[0], 1000)]
+unlabeled_splits = [unlabeled.loc[i:i+9999,:] for i in range(0, unlabeled.shape[0], 10000)]
+first_unlabeled_id, last_unlabeled_id = unlabeled.loc[0,"id"], unlabeled.loc[unlabeled.shape[0]-1,"id"]
+NB_clf = MultinomialNB()
+linear_clf = SGDClassifier()
+
+
+def make_feature_columns(fragment):
+    for frequent_term in (frequent_terms.keys()):
+         fragment[f'has {str(frequent_term)} snippet'] = 0
+    fragment.set_index('id', inplace=True)
+    for snippet in snippets[fragment.index[0]-1:fragment.index[-1]]:
+         for term in snippet['snippet']:
+              if term in frequent_terms.keys():
+                   fragment.at[snippet['id'], f'has {str(term)} snippet'] = 1
+
+    pd.set_option('display.max_rows', None)
+
+
+# create intustry2clusterid
+train_kmeans = labeled.loc[:100000,:].copy().drop(columns=['text'])
+make_feature_columns(train_kmeans)
+grouped = train_kmeans.dropna(subset=['founded', 'size']).groupby('industry')
+
+del train_kmeans
 mean_founded_by_industry = grouped.founded.mean().sort_values(axis=0, ascending=False)
 mode_size_by_industry = grouped['size'].agg(lambda x: x.value_counts().index[0])
 industry2vec_df = pd.DataFrame()
 industry2vec_df['size'] = mode_size_by_industry
 industry2vec_df['founded'] = mean_founded_by_industry
 snippet_cols = [f'has {str(term)} snippet' for term in frequent_terms.keys()]
+not_very_common_cols = [f'has {str(term)} snippet' for term in not_very_common_lst]
 # for t in snippet_cols:
-sums = grouped[snippet_cols].apply(lambda x : x.astype(int).sum())
-industry2vec_df = pd.concat(
-    [
-        industry2vec_df,
-        sums
-    ], axis=1
+# sums = grouped[snippet_cols].apply(lambda x : x.astype(int).sum())
+for col in snippet_cols:
+    sum = grouped[col].apply(lambda x: x.astype(int).sum()/x.count())
+    industry2vec_df = pd.concat(
+        [
+            industry2vec_df,
+            sum
+        ], axis=1
 )
-
 # print(industry2vec_df)
 X = industry2vec_df.to_numpy()
 clf = KMeansConstrained(
@@ -158,36 +185,69 @@ clf = KMeansConstrained(
 clf.fit_predict(X)
 industry2vec_df['kmeans.labels'] = clf.labels_
 print(industry2vec_df['kmeans.labels'])
-# print(industry2vec_df['kmeans.labels'].value_counts())
+# todo write result to csv file
 
+test = labeled_splits[-1]
+make_feature_columns(test)
+test['founded'].fillna((labeled['founded'].mean()), inplace=True)
+test['size'].fillna((labeled['size'].mode()), inplace=True)
+X_test, y_test = csc_matrix(
+            test.drop(columns=['text', 'country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy()) \
+            , test['industry'].apply(lambda y: industry2vec_df['kmeans.labels'].loc[y])
 
-labeled['founded'].fillna((labeled['founded'].mean()), inplace=True)
-labeled['size'].fillna((labeled['size'].mode()), inplace=True)
-unlabeled['founded'].fillna((labeled['founded'].mean()), inplace=True)
-unlabeled['size'].fillna((labeled['size'].mode()), inplace=True)
-train, test = labeled.loc[0:50000,:], labeled.loc[50001:60000,:]
-print(test.dtypes)
-pd.set_option('display.max_rows', 50)
-print(test)
-# predict cluster membership for unknown instances
-classifier = RandomForestClassifier(random_state=RANDOM_STATE)
-X_train, y_train = csc_matrix(train.drop(columns=['text', 'country', 'region', 'locality', 'industry']).to_numpy()),\
-                   train['industry'].apply(lambda y: industry2vec_df['kmeans.labels'].loc[y])
-X_test, y_test = csc_matrix(test.drop(columns=['text', 'country', 'region', 'locality', 'industry']).to_numpy())\
-    , test['industry'].apply(lambda y: industry2vec_df['kmeans.labels'].loc[y])
-classifier.fit(X_train, y_train)
-print('fit done')
-y_hat = classifier.predict(X_test)
-print(f"{classifier.score(X_test,y_test)=}")
-print(f"{classifier.score(X_train,classifier.predict(X_train))=}")
-NB_clf = MultinomialNB()
-NB_clf.partial_fit(X_train, y_train, classes=list(range(20)))
+for fragment_idx in (range(len(labeled_splits)-1)):
+    fragment = labeled_splits[fragment_idx]
+    # create column for snippet terms
+    make_feature_columns(fragment)
+    # print(fragment[common_cols].sum(axis=1))
+    # fill NANs
+    fragment['founded'].fillna((labeled['founded'].mean()), inplace=True)
+    fragment['size'].fillna((labeled['size'].mode()), inplace=True)
+    # unlabeled['founded'].fillna((labeled['founded'].mean()), inplace=True)
+    # unlabeled['size'].fillna((labeled['size'].mode()), inplace=True)
+
+    pd.set_option('display.max_rows', 50)
+    # predict cluster membership for unknown instances
+    # todo when to drop text?
+    X_train, y_train = csc_matrix(fragment.drop(columns=['text', 'country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy()),\
+                       fragment['industry'].apply(lambda y: industry2vec_df['kmeans.labels'].loc[y])
+    NB_clf.partial_fit(X_train, y_train, classes=list(range(20)))
+    # linear_clf.partial_fit(X_train, y_train, classes=list(range(20)))
+    if fragment_idx == 0:
+        print(f"{NB_clf.score(X_train, NB_clf.predict(X_train))=}")
+    y_hat = NB_clf.predict(X_test)
+    print(f"{NB_clf.score(X_test,y_test)=}")
+    labeled_splits[fragment_idx] = None
+    del fragment
+
+# test
 y_hat = NB_clf.predict(X_test)
 print(f"{NB_clf.score(X_test,y_test)=}")
-print(f"{NB_clf.score(X_train, NB_clf.predict(X_train))=}")
+# y_hat = linear_clf.predict(X_test)
+# print(f"{linear_clf.score(X_test,y_test)=}")
+
+# todo same process for unlabeled...
+# todo create company2industryid
 
 
 
+
+
+"""other classifiers"""
+# classifier = RandomForestClassifier(random_state=RANDOM_STATE)
+# linear_clf.partial_fit(X_train1, y_train1, classes=list(range(20)))
+# y_hat = linear_clf.predict(X_test)
+# print(f"{linear_clf.score(X_test,y_test)=}")
+# linear_clf.partial_fit(X_train2, y_train2, classes=list(range(20)))
+# y_hat = linear_clf.predict(X_test)
+# print(f"{linear_clf.score(X_test,y_test)=}")
+# print(f"{NB_clf.score(X_train1, NB_clf.predict(X_train1))=}")
+
+# classifier.fit(X_train1, y_train1)
+# print('fit done')
+# y_hat = classifier.predict(X_test)
+# print(f"{classifier.score(X_test,y_test)=}")
+# print(f"{classifier.score(X_train1,classifier.predict(X_train1))=}")
 
 
 
