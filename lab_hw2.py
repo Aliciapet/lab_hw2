@@ -40,23 +40,19 @@ def stem(s):
 labeled_path = 'C:/Users/אריאל/PycharmProjects/lab_hw1/labeled.csv'
 unlabeled_path = 'C:/Users/אריאל/PycharmProjects/lab_hw1/unlabeled.csv'
 warnings.filterwarnings("ignore")
-labeled = pd.read_csv(labeled_path, nrows=210000)
+labeled = pd.read_csv(labeled_path, nrows=210)
 unlabeled = pd.read_csv(unlabeled_path, nrows=5)
 # labeled.drop(columns=['country', 'region', 'locality', 'founded', 'size'], inplace=True)
 # unlabeled.drop(columns=['country', 'region', 'locality', 'founded', 'size'], inplace=True)
 # labeled_splits = [labeled.loc[0:29999,:]]+[labeled.loc[i:i+9999,:] for i in range(30000, labeled.shape[0], 10000)]
 texts, industry = (labeled['text']), (labeled['industry'])
-# model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+emb_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 # record_embeddings = model.encode(texts)
 # labeled['embedding'] = record_embeddings.tolist()
 # # print(labeled)
 # # labeled['sim2_0'] = labeled.apply(lambda row: cosine_similarity(record_embeddings[1].reshape((-1,1)), np.array(row['embedding'])).reshape((-1,1)), axis=1)
-# # sims = cosine_similarity(
-# #     [record_embeddings[1]],
-# #     record_embeddings[:]
-# # )
+
 # # labeled['sim2_0'] = sims[0].tolist()
-# # print(labeled['text'].loc[1]) # [np.argmax(sims)]
 # # print(labeled[['industry','sim2_0']].sort_values(['sim2_0'], axis=0, ascending=False))
 # rows_already_read = 0
 industry2vec = {}
@@ -105,16 +101,16 @@ industry2vec = {}
 # with open('HW1_205552599_205968043/205552599_205968043.json', 'r') as f:
 #      snippets = json.load(f)
 # with open('snippets50000.json', 'r') as f:
-with open('C:/Users/אריאל/PycharmProjects/lab_hw1/HW1_205552599_205968043/205552599_205968043.json', 'r') as f:
+with open('C:/Users/אריאל/PycharmProjects/lab_hw1/HW1_205552599_205968043/205552599_205968043.json', 'r') as f: # todo change pat
      snippets = json.load(f)
-     snippets = snippets[:210000]
+     snippets = snippets[:2100]
 
 cnt = Counter()
 for snippet in snippets:
      for term in snippet['snippet']:
           cnt[term] += 1
-FREQ_THRESH = 1000/4
-VERY_COMMON_THRESH = 2000/4
+FREQ_THRESH = 10000
+VERY_COMMON_THRESH = 20000
 frequent_terms = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= FREQ_THRESH}
 very_common = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= VERY_COMMON_THRESH}
 not_very_common_lst = [k for k in frequent_terms.keys() if k not in very_common.keys()]
@@ -139,7 +135,27 @@ NB_clf = MultinomialNB()
 linear_clf = SGDClassifier()
 
 
+def stem(s):
+    warnings.filterwarnings("ignore")
+    if not isinstance(s, str):  # handle nan values
+        return "empty"
+    else:
+        stemmed = ' '.join([stemmer.stem(y) for y in s.split()])
+        return stemmed if len(stemmed) else s
+
+
 def make_feature_columns(fragment):
+    fragment['text'] = fragment['text'].apply(stem)  # Stem every word.
+    # fragment['text'].fillna('', inplace=True)
+    text_embeddings = emb_model.encode(fragment['text'])
+    fragment.drop(['text'], inplace=True, axis=1)
+    fragment = pd.concat(
+        [
+            fragment,
+            pd.DataFrame(text_embeddings)
+        ], axis=1
+    )
+    print(fragment)
     for frequent_term in (frequent_terms.keys()):
          fragment[f'has {str(frequent_term)} snippet'] = 0
     fragment.set_index('id', inplace=True)
@@ -147,13 +163,15 @@ def make_feature_columns(fragment):
          for term in snippet['snippet']:
               if term in frequent_terms.keys():
                    fragment.at[snippet['id'], f'has {str(term)} snippet'] = 1
-
+    print(fragment)
     pd.set_option('display.max_rows', None)
 
 
 # create intustry2clusterid
-train_kmeans = labeled.loc[:100000,:].copy().drop(columns=['text'])
+train_kmeans = labeled.loc[:100,:].copy()#.drop(columns=['text'])
 make_feature_columns(train_kmeans)
+print(train_kmeans)
+print(train_kmeans.shape)
 grouped = train_kmeans.dropna(subset=['founded', 'size']).groupby('industry')
 
 del train_kmeans
@@ -183,17 +201,19 @@ clf = KMeansConstrained(
      random_state=0
 )
 clf.fit_predict(X)
-industry2vec_df['kmeans.labels'] = clf.labels_
-print(industry2vec_df['kmeans.labels'])
+industry2vec_df['clusterID'] = clf.labels_
+print(industry2vec_df['clusterID'])
 # todo write result to csv file
+industry2vec_df.to_csv('Industery2cluster.csv', columns=['clusterID'])
 
 test = labeled_splits[-1]
 make_feature_columns(test)
 test['founded'].fillna((labeled['founded'].mean()), inplace=True)
 test['size'].fillna((labeled['size'].mode()), inplace=True)
+print(f'{test.shape}')
 X_test, y_test = csc_matrix(
-            test.drop(columns=['text', 'country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy()) \
-            , test['industry'].apply(lambda y: industry2vec_df['kmeans.labels'].loc[y])
+            test.drop(columns=['country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy()) \
+            , test['industry'].apply(lambda y: industry2vec_df['clusterID'].loc[y])
 
 for fragment_idx in (range(len(labeled_splits)-1)):
     fragment = labeled_splits[fragment_idx]
@@ -203,14 +223,11 @@ for fragment_idx in (range(len(labeled_splits)-1)):
     # fill NANs
     fragment['founded'].fillna((labeled['founded'].mean()), inplace=True)
     fragment['size'].fillna((labeled['size'].mode()), inplace=True)
-    # unlabeled['founded'].fillna((labeled['founded'].mean()), inplace=True)
-    # unlabeled['size'].fillna((labeled['size'].mode()), inplace=True)
-
     pd.set_option('display.max_rows', 50)
     # predict cluster membership for unknown instances
-    # todo when to drop text?
-    X_train, y_train = csc_matrix(fragment.drop(columns=['text', 'country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy()),\
-                       fragment['industry'].apply(lambda y: industry2vec_df['kmeans.labels'].loc[y])
+    # todo when to drop text? drop 'country'?
+    X_train, y_train = csc_matrix(fragment.drop(columns=['country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy()),\
+                       fragment['industry'].apply(lambda y: industry2vec_df['clusterID'].loc[y])
     NB_clf.partial_fit(X_train, y_train, classes=list(range(20)))
     # linear_clf.partial_fit(X_train, y_train, classes=list(range(20)))
     if fragment_idx == 0:
@@ -227,6 +244,18 @@ print(f"{NB_clf.score(X_test,y_test)=}")
 # print(f"{linear_clf.score(X_test,y_test)=}")
 
 # todo same process for unlabeled...
+for fragment_idx in (range(len(unlabeled_splits)-1)):
+    fragment = unlabeled_splits[fragment_idx]
+    # create column for snippet terms
+    make_feature_columns(fragment)
+    # fill NANs
+    fragment['founded'].fillna((labeled['founded'].mean()), inplace=True)
+    fragment['size'].fillna((labeled['size'].mode()), inplace=True)
+    # predict cluster membership for unknown instances
+    X_comp = csc_matrix(fragment.drop(columns=['country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy())
+    y_hat = NB_clf.predict(X_comp)
+    # todo put prediction in dataframe
+    labeled_splits[fragment_idx] = None
 # todo create company2industryid
 
 
