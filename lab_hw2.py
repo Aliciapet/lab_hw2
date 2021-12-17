@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer
 import pandas as pd
 import numpy as np
 from scipy.sparse import csc_matrix
@@ -37,16 +37,15 @@ def stem(s):
         return stemmed if len(stemmed) else s
 
 
-labeled_path = 'C:/Users/אריאל/PycharmProjects/lab_hw1/labeled.csv'
-unlabeled_path = 'C:/Users/אריאל/PycharmProjects/lab_hw1/unlabeled.csv'
+labeled_path = 'labeled.csv'
+unlabeled_path = 'unlabeled.csv'
 warnings.filterwarnings("ignore")
-labeled = pd.read_csv(labeled_path, nrows=210)
-unlabeled = pd.read_csv(unlabeled_path, nrows=5)
+labeled = pd.read_csv(labeled_path, nrows=210000)
+unlabeled = pd.read_csv(unlabeled_path, nrows=50000)
 # labeled.drop(columns=['country', 'region', 'locality', 'founded', 'size'], inplace=True)
 # unlabeled.drop(columns=['country', 'region', 'locality', 'founded', 'size'], inplace=True)
-# labeled_splits = [labeled.loc[0:29999,:]]+[labeled.loc[i:i+9999,:] for i in range(30000, labeled.shape[0], 10000)]
 texts, industry = (labeled['text']), (labeled['industry'])
-emb_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+# emb_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 # record_embeddings = model.encode(texts)
 # labeled['embedding'] = record_embeddings.tolist()
 # # print(labeled)
@@ -78,48 +77,36 @@ industry2vec = {}
 #     json.dump({'emb sum by industry': {k: vec.tolist() for k, vec in emb_sum_by_industry.items()},
 #               'industry2vec': {k: vec.tolist() for k, vec in industry2vec.items()},
 #                'n per class': n_per_class, 'rows already read': rows_already_read}, f, indent=1)
-# # .to_records()
-
 
 # labeled['text'] = labeled['text'].apply(remove_digits)
 # labeled['text'] = labeled['text'].apply(stem)  # Stem every word.
 # print('stemmed')
 
-# tf_vectorizer = CountVectorizer(max_df=.60, min_df=50, stop_words='english', max_features=30000)
-# # create a vocabulary based on one fragment
-# tf_vectorizer.fit(labeled['text'])
-# tfidf_transformer = TfidfTransformer(use_idf=True)
-#
-# # transformed_train_tf_documents = tf_vectorizer.fit_transform(labeled['text'])
-# # transformed_train_tfidf_documents = tfidf_transformer.fit_transform(transformed_train_tf_documents)
-# swapped_vocabulary = dict((v,k) for k,v in tf_vectorizer.vocabulary_.items())
-# vocab_size = len(swapped_vocabulary)
-# print('vocab-size = ', vocab_size)
-# # find label names and a penalty for each term
-# label_names, penalty_per_term, num_of_industries = fit(first_fragment, transformed_train_tf_documents)
-
-# with open('HW1_205552599_205968043/205552599_205968043.json', 'r') as f:
+# with open('205552599_205968043.json', 'r') as f:
 #      snippets = json.load(f)
-# with open('snippets50000.json', 'r') as f:
-with open('C:/Users/אריאל/PycharmProjects/lab_hw1/HW1_205552599_205968043/205552599_205968043.json', 'r') as f: # todo change pat
-     snippets = json.load(f)
-     snippets = snippets[:2100]
+with open('snippets50000.json', 'r') as f:
+    snippets = json.load(f)
+# with open('C:/Users/אריאל/PycharmProjects/lab_hw1/HW1_205552599_205968043/205552599_205968043.json', 'r') as f: # todo change pat
+#      snippets = json.load(f)
+     # snippets = snippets[:2100]
 
 cnt = Counter()
 for snippet in snippets:
      for term in snippet['snippet']:
           cnt[term] += 1
-FREQ_THRESH = 10000
-VERY_COMMON_THRESH = 20000
-frequent_terms = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= FREQ_THRESH}
-very_common = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= VERY_COMMON_THRESH}
+FREQ_THRESH = 500# 5000
+VERY_COMMON_THRESH = 500# 5000
+frequent_terms = {k:count for k,count in sorted(dict(cnt).items(), key=lambda item: item[1], reverse=True)[:FREQ_THRESH]}
+# frequent_terms = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= FREQ_THRESH}
+# very_common = {k:cnt[k] for k in dict(cnt).keys() if cnt[k] >= VERY_COMMON_THRESH}
+very_common = {k:count for k,count in sorted(dict(cnt).items(), key=lambda item: item[1], reverse=True)[:VERY_COMMON_THRESH]}
 not_very_common_lst = [k for k in frequent_terms.keys() if k not in very_common.keys()]
 common_cols = [f'has {str(term)} snippet' for term in frequent_terms.keys()]
 print(f'{len(frequent_terms)=}')
 print(f'{len(very_common)=}')
 
 print('loaded')
-# normalize columns todo?
+# normalize columns
 labeled['founded'] = (labeled['founded'] - labeled['founded'].min()) / (
             labeled['founded'].max() - labeled['founded'].min())
 labeled['size'] = labeled['size'].apply(lambda x: np.log(int(str(x).split('-')[0].replace('+', ''))))
@@ -144,18 +131,20 @@ def stem(s):
         return stemmed if len(stemmed) else s
 
 
-def make_feature_columns(fragment):
-    fragment['text'] = fragment['text'].apply(stem)  # Stem every word.
-    # fragment['text'].fillna('', inplace=True)
-    text_embeddings = emb_model.encode(fragment['text'])
+def make_feature_columns(fragment, for_train_kmeans=False):
+    # if for_train_kmeans:
+    #     print('stemming')
+    #     fragment['text'] = fragment['text'].apply(stem)  # Stem every word.
+    #     # fragment['text'].fillna('', inplace=True)
+    #     text_embeddings = emb_model.encode(fragment['text'])
+    #     print('embedding added')
+    #     fragment = pd.concat(
+    #         [
+    #             fragment,
+    #             pd.DataFrame(text_embeddings)
+    #         ], axis=1
+    #     )
     fragment.drop(['text'], inplace=True, axis=1)
-    fragment = pd.concat(
-        [
-            fragment,
-            pd.DataFrame(text_embeddings)
-        ], axis=1
-    )
-    print(fragment)
     for frequent_term in (frequent_terms.keys()):
          fragment[f'has {str(frequent_term)} snippet'] = 0
     fragment.set_index('id', inplace=True)
@@ -163,14 +152,15 @@ def make_feature_columns(fragment):
          for term in snippet['snippet']:
               if term in frequent_terms.keys():
                    fragment.at[snippet['id'], f'has {str(term)} snippet'] = 1
-    print(fragment)
+    # print(fragment.loc[fragment.index[0]])
     pd.set_option('display.max_rows', None)
+    return fragment
 
 
 # create intustry2clusterid
-train_kmeans = labeled.loc[:100,:].copy()#.drop(columns=['text'])
-make_feature_columns(train_kmeans)
-print(train_kmeans)
+train_kmeans = labeled.loc[:100000,:].copy()#.drop(columns=['text'])
+train_kmeans = make_feature_columns(train_kmeans, for_train_kmeans=True)
+# print(train_kmeans)
 print(train_kmeans.shape)
 grouped = train_kmeans.dropna(subset=['founded', 'size']).groupby('industry')
 
@@ -192,7 +182,6 @@ for col in snippet_cols:
             sum
         ], axis=1
 )
-# print(industry2vec_df)
 X = industry2vec_df.to_numpy()
 clf = KMeansConstrained(
      n_clusters=20,
@@ -202,12 +191,13 @@ clf = KMeansConstrained(
 )
 clf.fit_predict(X)
 industry2vec_df['clusterID'] = clf.labels_
-print(industry2vec_df['clusterID'])
-# todo write result to csv file
-industry2vec_df.to_csv('Industery2cluster.csv', columns=['clusterID'])
+print(f'{industry2vec_df["clusterID"]}')
+# todo check how many rows to write to csv file, names of columns, file name
+industry2vec_df.to_csv('industery2cluster.csv', columns=['clusterID'])
+# industry2vec_df = pd.read_csv('industery2cluster.csv', index_col='industry')
 
 test = labeled_splits[-1]
-make_feature_columns(test)
+test = make_feature_columns(test)
 test['founded'].fillna((labeled['founded'].mean()), inplace=True)
 test['size'].fillna((labeled['size'].mode()), inplace=True)
 print(f'{test.shape}')
@@ -218,7 +208,7 @@ X_test, y_test = csc_matrix(
 for fragment_idx in (range(len(labeled_splits)-1)):
     fragment = labeled_splits[fragment_idx]
     # create column for snippet terms
-    make_feature_columns(fragment)
+    fragment = make_feature_columns(fragment)
     # print(fragment[common_cols].sum(axis=1))
     # fill NANs
     fragment['founded'].fillna((labeled['founded'].mean()), inplace=True)
@@ -244,10 +234,12 @@ print(f"{NB_clf.score(X_test,y_test)=}")
 # print(f"{linear_clf.score(X_test,y_test)=}")
 
 # todo same process for unlabeled...
+unlabeled['clusterID'] = 0
+unlabeled.set_index('id', inplace=True)
 for fragment_idx in (range(len(unlabeled_splits)-1)):
     fragment = unlabeled_splits[fragment_idx]
     # create column for snippet terms
-    make_feature_columns(fragment)
+    fragment = make_feature_columns(fragment)
     # fill NANs
     fragment['founded'].fillna((labeled['founded'].mean()), inplace=True)
     fragment['size'].fillna((labeled['size'].mode()), inplace=True)
@@ -255,8 +247,10 @@ for fragment_idx in (range(len(unlabeled_splits)-1)):
     X_comp = csc_matrix(fragment.drop(columns=['country', 'region', 'locality', 'industry'] + not_very_common_cols).to_numpy())
     y_hat = NB_clf.predict(X_comp)
     # todo put prediction in dataframe
-    labeled_splits[fragment_idx] = None
-# todo create company2industryid
+    unlabeled.loc[fragment.index[0]:fragment.index[-1],'clusterID'] = y_hat
+    unlabeled_splits[fragment_idx] = None
+# create company2cluster
+unlabeled.to_csv('company2cluster.csv', columns=['clusterID'])
 
 
 
