@@ -1,148 +1,148 @@
 industry,clusterID
-accounting,15
-airlines/aviation,14
-alternative dispute resolution,19
-alternative medicine,9
-animation,19
-apparel & fashion,0
-architecture & planning,17
-arts and crafts,0
-automotive,10
-aviation & aerospace,14
-banking,4
-biotechnology,7
-broadcast media,2
-building materials,3
-business supplies and equipment,3
+accounting,16
+airlines/aviation,9
+alternative dispute resolution,2
+alternative medicine,7
+animation,4
+apparel & fashion,4
+architecture & planning,15
+arts and crafts,4
+automotive,19
+aviation & aerospace,9
+banking,16
+biotechnology,0
+broadcast media,13
+building materials,15
+business supplies and equipment,8
 capital markets,11
 chemicals,3
-civic & social organization,6
-civil engineering,19
-commercial real estate,16
-computer & network security,13
-computer games,0
-computer hardware,13
-computer networking,13
-computer software,13
-construction,3
-consumer electronics,13
-consumer goods,0
-consumer services,6
-cosmetics,7
-dairy,7
-defense & space,14
-design,2
-e-learning,6
-education management,5
+civic & social organization,10
+civil engineering,15
+commercial real estate,14
+computer & network security,8
+computer games,4
+computer hardware,8
+computer networking,8
+computer software,8
+construction,15
+consumer electronics,8
+consumer goods,4
+consumer services,15
+cosmetics,5
+dairy,6
+defense & space,3
+design,13
+e-learning,13
+education management,10
 electrical/electronic manufacturing,3
-entertainment,2
-environmental services,6
-events services,2
-executive office,6
-facilities services,3
-farming,0
-financial services,4
-fine art,12
-fishery,4
+entertainment,4
+environmental services,15
+events services,4
+executive office,13
+facilities services,15
+farming,15
+financial services,11
+fine art,4
+fishery,16
 food & beverages,18
 food production,18
 fund-raising,0
-furniture,17
-gambling & casinos,8
-"glass, ceramics & concrete",17
-government administration,16
-government relations,6
+furniture,12
+gambling & casinos,1
+"glass, ceramics & concrete",9
+government administration,14
+government relations,10
 graphic design,12
-"health, wellness and fitness",9
+"health, wellness and fitness",0
 higher education,5
-hospital & health care,9
-hospitality,16
-human resources,19
-import and export,10
-individual & family services,6
+hospital & health care,7
+hospitality,14
+human resources,17
+import and export,4
+individual & family services,10
 industrial automation,3
-information services,2
-information technology and services,13
-insurance,4
-international affairs,6
-international trade and development,2
-internet,2
+information services,13
+information technology and services,8
+insurance,16
+international affairs,10
+international trade and development,13
+internet,13
 investment banking,11
 investment management,11
-judiciary,8
-law enforcement,15
-law practice,15
-legal services,15
-legislative office,1
-"leisure, travel & tourism",10
-libraries,4
-logistics and supply chain,10
-luxury goods & jewelry,1
+judiciary,1
+law enforcement,2
+law practice,2
+legal services,2
+legislative office,6
+"leisure, travel & tourism",9
+libraries,16
+logistics and supply chain,19
+luxury goods & jewelry,5
 machinery,3
-management consulting,2
-maritime,17
-market research,11
-marketing and advertising,2
+management consulting,13
+maritime,15
+market research,17
+marketing and advertising,13
 mechanical or industrial engineering,3
-media production,2
-medical devices,9
-medical practice,9
-mental health care,8
-military,14
+media production,13
+medical devices,7
+medical practice,7
+mental health care,1
+military,10
 mining & metals,3
 motion pictures and film,12
 museums and institutions,12
-music,5
-nanotechnology,19
-newspapers,15
-non-profit organization management,6
+music,6
+nanotechnology,15
+newspapers,2
+non-profit organization management,10
 oil & energy,3
-online media,2
-outsourcing/offshoring,10
-package/freight delivery,10
-packaging and containers,10
-paper & forest products,10
-performing arts,0
-pharmaceuticals,7
-philanthropy,0
+online media,13
+outsourcing/offshoring,17
+package/freight delivery,19
+packaging and containers,3
+paper & forest products,3
+performing arts,4
+pharmaceuticals,0
+philanthropy,10
 photography,12
-plastics,10
-political organization,0
+plastics,3
+political organization,10
 primary/secondary education,5
-printing,10
-professional training & coaching,6
-program development,6
-public policy,6
-public relations and communications,2
-public safety,6
-publishing,2
-railroad manufacture,1
-ranching,1
-real estate,16
-recreational facilities and services,0
+printing,6
+professional training & coaching,13
+program development,10
+public policy,10
+public relations and communications,13
+public safety,10
+publishing,13
+railroad manufacture,19
+ranching,6
+real estate,14
+recreational facilities and services,10
 religious institutions,5
-renewables & environment,3
+renewables & environment,15
 research,0
 restaurants,18
-retail,0
-security and investigations,16
-semiconductors,14
-shipbuilding,17
-sporting goods,0
-sports,0
-staffing and recruiting,8
+retail,4
+security and investigations,14
+semiconductors,3
+shipbuilding,9
+sporting goods,4
+sports,4
+staffing and recruiting,17
 supermarkets,18
-telecommunications,13
-textiles,10
-think tanks,6
+telecommunications,8
+textiles,4
+think tanks,10
 tobacco,1
-translation and localization,8
-transportation/trucking/railroad,10
-utilities,3
+translation and localization,1
+transportation/trucking/railroad,19
+utilities,15
 venture capital & private equity,11
 veterinary,7
-warehousing,10
+warehousing,3
 wholesale,3
 wine and spirits,18
-wireless,13
-writing and editing,2
+wireless,8
+writing and editing,17
